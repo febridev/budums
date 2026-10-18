@@ -37,7 +37,7 @@ Rows are appended with `valueInputOption: USER_ENTERED`, so Sheets stores the da
 
 ## Stack
 
-- Node.js 20+ in ESM mode (`"type": "module"`).
+- Node.js 22+ in ESM mode (`"type": "module"`).
 - `discord.js` v14. Gateway intents: `Guilds`, `GuildMessages`, `MessageContent`. MessageContent is a privileged intent and must be enabled in the Discord Developer Portal.
 - `@googleapis/sheets` (the official per-API package), using a Google service-account JSON key loaded via `GOOGLE_APPLICATION_CREDENTIALS`.
 - No `dotenv`:
@@ -54,7 +54,7 @@ Rows are appended with `valueInputOption: USER_ENTERED`, so Sheets stores the da
 | `index.js` | Discord client: env check, channel/bot filter, calls `handleSpend`, replies. |
 | `*.test.js` | `node:test` unit tests. |
 | `.env.example` | `DISCORD_TOKEN`, `CHANNEL_ID`, `SPREADSHEET_ID`, `SHEET_TAB`, `GOOGLE_APPLICATION_CREDENTIALS` |
-| `Dockerfile` | `node:20-alpine`, `npm ci --omit=dev`, runs as the non-root `node` user, `CMD ["node", "index.js"]` |
+| `Dockerfile` | `node:24-alpine`, `npm ci --omit=dev`, runs as the non-root `node` user, `CMD ["node", "index.js"]` |
 | `compose.yml` | One service: `restart: unless-stopped`, `env_file: .env`, mounts `./credentials.json:/app/credentials.json:ro` |
 | `.dockerignore`, `.gitignore` | Exclude `node_modules`, `.env` and `credentials.json` |
 | `README.md` | Setup: Discord bot plus MessageContent intent, Google service account, sharing the sheet with the service-account email, header row, local run, VPS deploy |

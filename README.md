@@ -16,7 +16,7 @@ The date is the day you posted, in Asia/Jakarta time. The bot replies `✅ …` 
 ## 1. Discord
 
 1. Create an application at <https://discord.com/developers/applications>, then go to **Bot** and click **Reset Token**. Copy the token into `DISCORD_TOKEN`.
-2. On the same page, turn on **Message Content Intent**. Without it the bot sees empty messages and stays silent.
+2. On the same page, turn on **Message Content Intent**. Without it the bot fails to log in with `Used disallowed intents` and keeps restarting.
 3. Go to **OAuth2 → URL Generator** and choose:
    - scope: `bot`
    - permissions: *View Channel*, *Send Messages*, *Read Message History*
@@ -34,7 +34,7 @@ The date is the day you posted, in Asia/Jakarta time. The bot replies `✅ …` 
 
 ## 3. Run locally
 
-Requires Node 20.6 or newer.
+Requires Node 22 or newer.
 
 ```sh
 cp .env.example .env   # then fill it in
@@ -50,7 +50,7 @@ npm start
 3. Run:
 
 ```sh
-chmod 644 credentials.json      # the container runs as a non-root user and must be able to read it
+sudo chown 1000:1000 credentials.json && sudo chmod 600 credentials.json   # readable only by the container's node user (uid 1000)
 docker compose up -d --build
 docker compose logs -f          # expect "Logged in as …"
 ```
