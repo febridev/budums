@@ -31,6 +31,7 @@ Log daily expenses by typing a message in one channel of a private Discord serve
 | Invalid message | Write nothing. Reply with the format hint: `Format: <item> <price> <category>, e.g. jajan kopi 25000 jajan` |
 | Google Sheets error | Reply `❌ not saved: <error message>` and log the error to stdout |
 | Other channel / bot author | Ignore silently |
+| Empty text (image-only post, or MessageContent intent off) | Ignore silently |
 
 Rows are appended with `valueInputOption: USER_ENTERED`, so Sheets stores the date as a real date and the price as a number. As a result, an item that starts with `=` would be read as a formula. That is acceptable, because only the owner writes to the sheet.
 
@@ -49,8 +50,9 @@ Rows are appended with `valueInputOption: USER_ENTERED`, so Sheets stores the da
 |------|----------------|
 | `parse.js` | `parseSpend(text)`: returns `{ item, price, category }` or `null`. `price` is a Number. `jakartaDate(date)`: returns `YYYY-MM-DD` in Asia/Jakarta. Both are pure functions. |
 | `sheet.js` | `appendSpend(row)`: appends one row to `SHEET_TAB!A:D` of `SPREADSHEET_ID`. |
-| `index.js` | Discord client: channel/bot filter, parse, append, reply. |
-| `parse.test.js` | `node:test` unit tests. |
+| `handle.js` | `handleSpend(text, createdAt, append)`: returns the reply text, or `null` to ignore. No Discord or Google imports, so it can be unit-tested. |
+| `index.js` | Discord client: env check, channel/bot filter, calls `handleSpend`, replies. |
+| `*.test.js` | `node:test` unit tests. |
 | `.env.example` | `DISCORD_TOKEN`, `CHANNEL_ID`, `SPREADSHEET_ID`, `SHEET_TAB`, `GOOGLE_APPLICATION_CREDENTIALS` |
 | `Dockerfile` | `node:20-alpine`, `npm ci --omit=dev`, runs as the non-root `node` user, `CMD ["node", "index.js"]` |
 | `compose.yml` | One service: `restart: unless-stopped`, `env_file: .env`, mounts `./credentials.json:/app/credentials.json:ro` |
