@@ -1,0 +1,7 @@
+node_modules
+.env
+credentials.json
+.git
+.superpowers
+docs
+*.test.js
