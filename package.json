@@ -1,0 +1,16 @@
+{
+  "name": "budums",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "start": "node --env-file=.env index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@googleapis/sheets": "^18.1.1",
+    "discord.js": "^14.27.0"
+  }
+}
