@@ -54,6 +54,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await interaction.editReply(await handleReceipt(image, interaction.createdAt, readReceipt, appendReceipt));
   } catch (err) {
     console.error('interaction failed:', err);
+    // otherwise the user is left with "thinking…" forever
+    if (interaction.deferred) await interaction.editReply('❌ something went wrong').catch(() => {});
   }
 });
 

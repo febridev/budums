@@ -13,7 +13,8 @@ function validDate(d) {
 const validItem = (it) =>
   typeof it?.name === 'string' && it.name.trim() !== ''
   && typeof it.qty === 'number' && Number.isFinite(it.qty) && it.qty > 0
-  && Number.isInteger(it.price);
+  && Number.isInteger(it.price)
+  && (it.barcode == null || typeof it.barcode === 'string');
 
 // USER_ENTERED would turn these into formulas (#ERROR!); a leading ' keeps them as text.
 const text = (s) => (/^[=+\-@]/.test(s) ? `'${s}` : s);

@@ -119,3 +119,9 @@ test("long receipt is truncated to Discord's limit", async () => {
   assert.match(reply, /\n…and \d+ more\n⚠️ items sum \d+, receipt total 1$/);
   assert.equal(calls[0].length, 200);
 });
+
+test('non-string barcode is bad output, not a crash', async () => {
+  const { reply, calls } = await run(withItem({ barcode: 8991234567890 }));
+  assert.equal(reply, BAD);
+  assert.equal(calls.length, 0);
+});
