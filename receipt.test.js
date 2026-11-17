@@ -122,6 +122,34 @@ test('handleReceiptCommand saves receipt and confirms', async () => {
   assert.equal(appended.row[3], 'jajan');
 });
 
+test('handleReceiptCommand supports customTab override', async () => {
+  const mockClient = createMockAiClient({
+    item: 'Lunch',
+    price: 35000,
+    category: 'makan',
+  });
+
+  let appendedOpts = null;
+  const mockAppend = async (row, opts) => {
+    appendedOpts = opts;
+  };
+
+  const channelConfig = {
+    spreadsheetId: 'sheet-1234567890',
+    tab: 'DefaultTab',
+  };
+
+  await handleReceiptCommand({
+    buffer: Buffer.from('fake'),
+    channelConfig,
+    customTab: 'FoodExpenses',
+    appendSpend: mockAppend,
+    aiClient: mockClient,
+  });
+
+  assert.equal(appendedOpts.tab, 'FoodExpenses');
+});
+
 test('handleReceiptCommand reports Google Sheet append failure', async () => {
   const mockClient = createMockAiClient({
     item: 'Coffee',

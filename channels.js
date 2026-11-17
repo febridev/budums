@@ -60,9 +60,16 @@ export function getChannelConfig(channelId, filePath = getChannelsFile()) {
 }
 
 export function setChannelConfig(channelId, spreadsheetInput, tab = 'Sheet1', filePath = getChannelsFile()) {
-  const spreadsheetId = parseSpreadsheetId(spreadsheetInput);
+  let spreadsheetId = parseSpreadsheetId(spreadsheetInput);
+
+  // If no spreadsheet input provided, fallback to existing channel config or SPREADSHEET_ID in .env
   if (!spreadsheetId) {
-    throw new Error('Invalid Google Sheet URL or spreadsheet ID.');
+    const existing = getChannelConfig(channelId, filePath);
+    spreadsheetId = existing?.spreadsheetId || process.env.SPREADSHEET_ID;
+  }
+
+  if (!spreadsheetId) {
+    throw new Error('Please provide a Google Sheet URL or ID, or set SPREADSHEET_ID in .env.');
   }
 
   const cleanTab = (tab || 'Sheet1').trim() || 'Sheet1';
@@ -73,7 +80,14 @@ export function setChannelConfig(channelId, spreadsheetInput, tab = 'Sheet1', fi
     updatedAt: new Date().toISOString(),
   };
 
-  saveStore(store, filePath);
+  try {
+    saveStore(store, filePath);
+  } catch (err) {
+    if (err.code === 'EACCES') {
+      throw new Error(`Permission denied writing to ${filePath}. On your server, run: sudo chown -R 1000:1000 data`);
+    }
+    throw err;
+  }
   return { spreadsheetId, tab: cleanTab };
 }
 

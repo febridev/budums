@@ -28,12 +28,16 @@ test('slashCommands exports 3 commands', () => {
 
 test('handleInteraction set-sheet configures channel and replies', async () => {
   let replied = null;
+  const mockOptions = {
+    sheet: 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
+    tab: 'Nov2026',
+  };
   const interaction = {
     isChatInputCommand: () => true,
     commandName: 'set-sheet',
     channelId: 'chan-set-test',
     options: {
-      getString: (key) => (key === 'sheet' ? 'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit' : 'Nov2026'),
+      getString: (key) => mockOptions[key] || null,
     },
     reply: async (data) => {
       replied = data;
@@ -44,6 +48,27 @@ test('handleInteraction set-sheet configures channel and replies', async () => {
   assert.match(replied.content, /Google Sheet configured for this channel/);
   assert.match(replied.content, /1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/);
   assert.match(replied.content, /Nov2026/);
+});
+
+test('handleInteraction set-sheet with sheet_name reuses default SPREADSHEET_ID', async () => {
+  process.env.SPREADSHEET_ID = 'sheet-env-default-12345';
+  let replied = null;
+  const interaction = {
+    isChatInputCommand: () => true,
+    commandName: 'set-sheet',
+    channelId: 'chan-food',
+    options: {
+      getString: (key) => (key === 'sheet_name' ? 'FoodExpenses' : null),
+    },
+    reply: async (data) => {
+      replied = data;
+    },
+  };
+
+  await handleInteraction(interaction);
+  assert.match(replied.content, /Google Sheet configured for this channel/);
+  assert.match(replied.content, /FoodExpenses/);
+  assert.match(replied.content, /sheet-env-default-12345/);
 });
 
 test('handleInteraction current-sheet returns warning when not set', async () => {
