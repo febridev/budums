@@ -13,15 +13,29 @@ function getAiClient(apiKey) {
 }
 
 const RECEIPT_PROMPT = `
-Analyze this receipt image and extract spending information.
-Return JSON with the following fields:
-- "item": A short, clean summary of what was purchased or merchant name (e.g. "Kopi Kenangan", "Indomaret", "Makan Siang"). Keep it concise.
-- "price": The total final price as an integer number only (e.g. 25000). No currency symbols, dots, commas, or decimals.
-- "category": A single-word category describing the spend, such as "jajan", "makan", "belanja", "transport", "tagihan", "kesehatan", "hiburan", or "lainnya".
-- "date": Date printed on receipt in YYYY-MM-DD format if visible, otherwise null.
+Analyze this receipt image and extract EVERY individual line item purchased.
 
-If this image is not a receipt or the total cannot be found, return:
-{ "error": "Image is not a receipt or total price could not be found" }
+Return a JSON array where each element has:
+- "item": The name of the individual product or item exactly as printed (e.g. "Es Kopi Susu", "Roti Bakar Coklat", "Nasi Goreng"). Keep the original name, do NOT summarize multiple items into one.
+- "qty": The quantity purchased (integer, default 1 if not shown).
+- "unit_price": The price per single unit as an integer (e.g. 15000). No currency symbols, dots, commas, or decimals.
+- "total_price": The line total as an integer (qty × unit_price, e.g. 30000 for 2x 15000).
+- "date": Date printed on receipt in YYYY-MM-DD format if visible, otherwise null. Use the same date for all items.
+
+Important rules:
+- Extract each purchased item as a separate entry in the array.
+- Do NOT include subtotals, totals, tax lines, discounts, or payment method lines as items.
+- If there is only one item, still return an array with one element.
+- If qty is not shown, assume 1 and set unit_price = total_price.
+
+Example output:
+[
+  { "item": "Es Kopi Susu", "qty": 1, "unit_price": 24000, "total_price": 24000, "date": "2026-11-17" },
+  { "item": "Roti Bakar Coklat", "qty": 2, "unit_price": 18000, "total_price": 36000, "date": "2026-11-17" }
+]
+
+If this image is not a receipt or no items can be found, return:
+{ "error": "Image is not a receipt or items could not be found" }
 `.trim();
 
 export async function extractReceiptFromBuffer(buffer, mimeType = 'image/jpeg', options = {}) {
@@ -58,31 +72,55 @@ export async function extractReceiptFromBuffer(buffer, mimeType = 'image/jpeg', 
     throw new Error(`Failed to parse model output: ${err.message}. Output was: ${text}`);
   }
 
-  // If Gemini returned an array of items, pick the first or combined
-  if (Array.isArray(data)) {
-    data = data[0];
+  // Handle error response
+  if (!Array.isArray(data)) {
+    if (data && data.error) {
+      throw new Error(data.error);
+    }
+    // Single object → wrap in array
+    data = [data];
   }
 
-  if (!data || data.error) {
-    throw new Error(data?.error || 'Could not extract valid receipt details.');
+  if (data.length === 0) {
+    throw new Error('No items found on the receipt.');
   }
 
-  const rawPrice = data.price;
-  const numPrice = typeof rawPrice === 'number' ? Math.round(rawPrice) : parseInt(String(rawPrice).replace(/\D/g, ''), 10);
-  if (!numPrice || Number.isNaN(numPrice) || numPrice <= 0) {
-    throw new Error('Could not identify a valid total price from this receipt.');
+  const items = [];
+  for (const entry of data) {
+    if (!entry || entry.error) continue;
+
+    const qty = Math.max(1, parseInt(entry.qty, 10) || 1);
+
+    // Parse unit_price
+    const rawUnit = entry.unit_price;
+    const unitPrice = typeof rawUnit === 'number' ? Math.round(rawUnit) : parseInt(String(rawUnit).replace(/\D/g, ''), 10);
+
+    // Parse total_price (fallback: qty * unit_price)
+    const rawTotal = entry.total_price;
+    let totalPrice = typeof rawTotal === 'number' ? Math.round(rawTotal) : parseInt(String(rawTotal || '').replace(/\D/g, ''), 10);
+    if (!totalPrice || Number.isNaN(totalPrice) || totalPrice <= 0) {
+      totalPrice = (unitPrice || 0) * qty;
+    }
+
+    // Derive unit_price from total if missing
+    const finalUnit = (unitPrice && unitPrice > 0) ? unitPrice : Math.round(totalPrice / qty);
+
+    if (!totalPrice || totalPrice <= 0) continue;
+
+    items.push({
+      item: (options.customItem || entry.item || 'Belanja').trim(),
+      qty,
+      unitPrice: finalUnit,
+      totalPrice,
+      date: entry.date && /^\d{4}-\d{2}-\d{2}$/.test(entry.date) ? entry.date : null,
+    });
   }
 
-  const item = (options.customItem || data.item || 'Belanja').trim();
-  const category = (options.customCategory || data.category || 'lainnya').trim().toLowerCase();
-  const date = data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date) ? data.date : null;
+  if (items.length === 0) {
+    throw new Error('Could not identify any valid items with prices from this receipt.');
+  }
 
-  return {
-    item,
-    price: numPrice,
-    category,
-    date,
-  };
+  return items;
 }
 
 export async function downloadImage(url) {
@@ -132,9 +170,9 @@ export async function handleReceiptCommand({
     return '❌ Please attach an image of your receipt.';
   }
 
-  let extracted;
+  let items;
   try {
-    extracted = await extractReceiptFromBuffer(imgBuffer, imgMime, {
+    items = await extractReceiptFromBuffer(imgBuffer, imgMime, {
       customCategory,
       customItem,
       aiClient,
@@ -143,12 +181,21 @@ export async function handleReceiptCommand({
     return `❌ Could not read receipt: ${err.message}`;
   }
 
-  const date = extracted.date || jakartaDate(createdAt);
-  const { price, item, category } = extracted;
+  const fallbackDate = jakartaDate(createdAt);
   const targetTab = (customTab || channelConfig.tab || 'Sheet1').trim();
 
+  // Build rows: TGL | Kode_Barcode | Nama_Barang | Qty | Harga_Satuan | Total_Harga
+  const rows = items.map((it) => [
+    it.date || fallbackDate,
+    '',  // Kode_Barcode (empty)
+    it.item,
+    it.qty,
+    it.unitPrice,
+    it.totalPrice,
+  ]);
+
   try {
-    await appendSpend([date, price, item, category], {
+    await appendSpend(rows, {
       spreadsheetId: channelConfig.spreadsheetId,
       tab: targetTab,
     });
@@ -157,5 +204,17 @@ export async function handleReceiptCommand({
     return `❌ Failed to save to Google Sheet: ${err.message}`;
   }
 
-  return `✅ **Saved!** ${date} | ${price} | ${item} | ${category}\n*(Spreadsheet: \`${channelConfig.spreadsheetId.slice(0, 6)}...\` | Sheet: \`${targetTab}\`)*`;
+  // Build confirmation message listing every item
+  const grandTotal = items.reduce((sum, it) => sum + it.totalPrice, 0);
+  const lines = items.map((it) => {
+    const qtyStr = it.qty > 1 ? ` x${it.qty}` : '';
+    return `  • ${it.item}${qtyStr} — ${it.totalPrice.toLocaleString('id-ID')}`;
+  });
+
+  return (
+    `✅ **Saved ${items.length} item${items.length > 1 ? 's' : ''}!**\n` +
+    lines.join('\n') + '\n' +
+    `  **Total: ${grandTotal.toLocaleString('id-ID')}**\n` +
+    `*(Sheet: \`${targetTab}\`)*`
+  );
 }

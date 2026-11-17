@@ -4,10 +4,10 @@ import { handleSpend } from './handle.js';
 
 const at = new Date('2026-10-24T23:30:00Z');
 
-test('valid message appends row in Date|Price|Item|Category order and confirms', async () => {
+test('valid message appends row in TGL|Kode_Barcode|Nama_Barang|Qty|Harga_Satuan|Total_Harga order and confirms', async () => {
   const rows = [];
   const reply = await handleSpend('jajan kopi 25000 jajan', at, async (r) => { rows.push(r); });
-  assert.deepEqual(rows, [['2026-10-25', 25000, 'jajan kopi', 'jajan']]);
+  assert.deepEqual(rows, [['2026-10-25', '', 'jajan kopi (jajan)', 1, 25000, 25000]]);
   assert.equal(reply, '✅ 2026-10-25 | 25000 | jajan kopi | jajan');
 });
 test('invalid message returns format hint and appends nothing', async () => {
