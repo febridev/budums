@@ -7,3 +7,4 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: /app/credentials.json
     volumes:
       - ./credentials.json:/app/credentials.json:ro
+      - ./data:/app/data
