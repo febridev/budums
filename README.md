@@ -51,7 +51,7 @@ The date is recorded in `Asia/Jakarta` time (UTC+7).
 1. In <https://console.cloud.google.com>, create or pick a project and enable the **Google Sheets API**.
 2. Go to **IAM & Admin → Service Accounts** and create a service account. Open **Keys → Add key → JSON**, and save the downloaded key as `credentials.json` in this folder.
 3. Open your Google Sheet and **Share** it with the service account email (`…@….iam.gserviceaccount.com`) as **Editor**.
-4. Type the header row: `Date | Price | Item | Category`.
+4. Type the header row: `TGL | Kode_Barcode | Nama_Barang | Qty | Harga_Satuan | Total_Harga`.
 
 ## 4. Run locally
 

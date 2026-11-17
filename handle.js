@@ -7,8 +7,9 @@ export async function handleSpend(text, createdAt, append, options = {}) {
   if (!spend) return 'Format: <item> <price> <category>, e.g. jajan kopi 25000 jajan';
   const { item, price, category } = spend;
   const date = jakartaDate(createdAt);
+  // Row format: TGL | Kode_Barcode | Nama_Barang | Qty | Harga_Satuan | Total_Harga
   try {
-    await append([date, price, item, category], options);
+    await append([date, '', `${item} (${category})`, 1, price, price], options);
   } catch (err) {
     console.error('append failed:', err);
     return `❌ not saved: ${err.message}`;

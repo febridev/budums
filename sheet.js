@@ -2,7 +2,7 @@ import { sheets, auth } from "@googleapis/sheets";
 
 // A1 notation: quote the tab name and double any apostrophes in it.
 export function rangeFor(tab) {
-  return `'${tab.replaceAll("'", "''")}'!A:D`;
+  return `'${tab.replaceAll("'", "''")}'!A:F`;
 }
 
 let client; // created on first append, so importing needs no credentials
@@ -21,6 +21,6 @@ export async function appendSpend(row, { spreadsheetId, tab } = {}) {
     range: rangeFor(targetTab),
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
-    requestBody: { values: [row] },
+    requestBody: { values: Array.isArray(row[0]) ? row : [row] },
   });
 }
