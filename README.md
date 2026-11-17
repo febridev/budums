@@ -88,7 +88,7 @@ Once running, type `/set-sheet` in any Discord channel with your Google Sheet UR
 3. Run:
 
 ```sh
-sudo chown 1000:1000 credentials.json && sudo chmod 600 credentials.json
+mkdir -p data && sudo chown -R 1000:1000 data credentials.json && sudo chmod 600 credentials.json
 docker compose up -d --build
 docker compose logs -f
 ```
