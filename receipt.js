@@ -107,13 +107,14 @@ export async function handleReceiptCommand({
   appendSpend,
   customCategory,
   customItem,
+  customTab,
   aiClient,
 }) {
   if (!channelConfig || !channelConfig.spreadsheetId) {
     return (
       '⚠️ **No Google Sheet is configured for this channel yet.**\n' +
       'Please set one first using `/set-sheet`:\n' +
-      '`/set-sheet sheet:<Google Sheet URL or ID> tab:<Tab Name>`\n\n' +
+      '`/set-sheet sheet_name:<Sheet/Tab Name> [url:<Google Sheet URL>]`\n\n' +
       '*The bot will remember it for this channel so you only have to do this once!*'
     );
   }
@@ -144,16 +145,17 @@ export async function handleReceiptCommand({
 
   const date = extracted.date || jakartaDate(createdAt);
   const { price, item, category } = extracted;
+  const targetTab = (customTab || channelConfig.tab || 'Sheet1').trim();
 
   try {
     await appendSpend([date, price, item, category], {
       spreadsheetId: channelConfig.spreadsheetId,
-      tab: channelConfig.tab,
+      tab: targetTab,
     });
   } catch (err) {
     console.error('appendSpend failed:', err);
     return `❌ Failed to save to Google Sheet: ${err.message}`;
   }
 
-  return `✅ **Saved!** ${date} | ${price} | ${item} | ${category}\n*(Spreadsheet: \`${channelConfig.spreadsheetId.slice(0, 6)}...\` | Tab: \`${channelConfig.tab}\`)*`;
+  return `✅ **Saved!** ${date} | ${price} | ${item} | ${category}\n*(Spreadsheet: \`${channelConfig.spreadsheetId.slice(0, 6)}...\` | Sheet: \`${targetTab}\`)*`;
 }

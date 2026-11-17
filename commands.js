@@ -5,12 +5,18 @@ import { handleReceiptCommand } from './receipt.js';
 export const slashCommands = [
   new SlashCommandBuilder()
     .setName('receipt')
-    .setDescription('Scan a receipt image and save spending to Google Sheet')
+    .setDescription('Scan a receipt image and save spending to a specific sheet')
     .addAttachmentOption((opt) =>
       opt
         .setName('image')
         .setDescription('Receipt image (JPG, PNG, WebP)')
         .setRequired(true)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName('sheet_name')
+        .setDescription('Optional sheet/tab name inside the file (e.g. Food, Transport, Nov2026)')
+        .setRequired(false)
     )
     .addStringOption((opt) =>
       opt
@@ -27,23 +33,35 @@ export const slashCommands = [
 
   new SlashCommandBuilder()
     .setName('set-sheet')
-    .setDescription('Configure and remember the Google Sheet for this channel')
+    .setDescription('Configure which Google Sheet and sheet/tab name to use for this channel')
+    .addStringOption((opt) =>
+      opt
+        .setName('sheet_name')
+        .setDescription('Name of the sheet/tab inside your spreadsheet (e.g. Food, Nov2026, Sheet1)')
+        .setRequired(false)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName('url')
+        .setDescription('Google Sheet URL or Spreadsheet ID (optional if set in .env)')
+        .setRequired(false)
+    )
     .addStringOption((opt) =>
       opt
         .setName('sheet')
-        .setDescription('Google Sheet URL or Spreadsheet ID')
-        .setRequired(true)
+        .setDescription('Alias for Google Sheet URL or ID')
+        .setRequired(false)
     )
     .addStringOption((opt) =>
       opt
         .setName('tab')
-        .setDescription('Tab name (default: Sheet1)')
+        .setDescription('Alias for sheet_name')
         .setRequired(false)
     ),
 
   new SlashCommandBuilder()
     .setName('current-sheet')
-    .setDescription('Show which Google Sheet is configured for this channel'),
+    .setDescription('Show which Google Sheet and sheet/tab name is configured for this channel'),
 ];
 
 export async function handleInteraction(interaction, { appendSpend, aiClient } = {}) {
@@ -52,8 +70,11 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
   const { commandName } = interaction;
 
   if (commandName === 'set-sheet') {
-    const sheetInput = interaction.options.getString('sheet', true);
-    const tabInput = interaction.options.getString('tab') || 'Sheet1';
+    const sheetInput = interaction.options.getString('url') || interaction.options.getString('sheet');
+    const tabInput =
+      interaction.options.getString('sheet_name') ||
+      interaction.options.getString('tab') ||
+      'Sheet1';
 
     try {
       const saved = setChannelConfig(interaction.channelId, sheetInput, tabInput);
@@ -61,8 +82,8 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
         content:
           `✅ **Google Sheet configured for this channel!**\n` +
           `• **Spreadsheet ID:** \`${saved.spreadsheetId}\`\n` +
-          `• **Tab:** \`${saved.tab}\`\n\n` +
-          `You can now use \`/receipt\` or post text spends here!`,
+          `• **Sheet Name (Tab):** \`${saved.tab}\`\n\n` +
+          `Receipts and spends in this channel will now be saved to the **${saved.tab}** sheet!`,
       });
     } catch (err) {
       await interaction.reply({
@@ -79,7 +100,7 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
       await interaction.reply({
         content:
           `⚠️ **No Google Sheet is configured for this channel yet.**\n` +
-          `Use \`/set-sheet sheet:<Google Sheet URL or ID> tab:<Tab Name>\` to set one.`,
+          `Use \`/set-sheet sheet_name:<Sheet Name> [url:<Google Sheet URL>]\` to set one.`,
       });
       return;
     }
@@ -88,7 +109,7 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
       content:
         `📊 **Current Google Sheet for this channel:**\n` +
         `• **Spreadsheet ID:** \`${config.spreadsheetId}\`\n` +
-        `• **Tab:** \`${config.tab}\``,
+        `• **Sheet Name (Tab):** \`${config.tab}\``,
     });
     return;
   }
@@ -100,7 +121,7 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
         content:
           `⚠️ **No Google Sheet is configured for this channel yet.**\n` +
           `Please configure this channel first with:\n` +
-          `\`/set-sheet sheet:<Google Sheet URL or ID> tab:<Tab Name>\``,
+          `\`/set-sheet sheet_name:<Sheet Name> [url:<Google Sheet URL>]\``,
       });
       return;
     }
@@ -114,6 +135,7 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
       return;
     }
 
+    const customTab = interaction.options.getString('sheet_name');
     const customCategory = interaction.options.getString('category');
     const customItem = interaction.options.getString('item');
 
@@ -124,6 +146,7 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
       createdAt: interaction.createdAt,
       channelConfig: config,
       appendSpend,
+      customTab,
       customCategory,
       customItem,
       aiClient,

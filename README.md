@@ -24,9 +24,9 @@ The date is recorded in `Asia/Jakarta` time (UTC+7).
 
 | Command | Description |
 |---|---|
-| `/receipt image:<file> [category:<tag>] [item:<name>]` | Scan a receipt photo and append it to the channel's Google Sheet. |
-| `/set-sheet sheet:<URL or ID> [tab:<name>]` | Link and remember a Google Sheet for the current channel. |
-| `/current-sheet` | View which Google Sheet and tab are linked to this channel. |
+| `/receipt image:<file> [sheet_name:<name>] [category:<tag>] [item:<name>]` | Scan a receipt photo and append it to the channel's Google Sheet (or a specific sheet name). |
+| `/set-sheet [sheet_name:<name>] [url:<URL or ID>]` | Link which sheet/tab name and Google Sheet to use for this channel. |
+| `/current-sheet` | View which Google Sheet and sheet name are linked to this channel. |
 
 ---
 
