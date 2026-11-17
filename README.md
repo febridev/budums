@@ -30,6 +30,21 @@ The date is recorded in `Asia/Jakarta` time (UTC+7).
 
 ---
 
+### Receipts: `/struck`
+
+In the receipt channel, type `/struck` and attach a photo of a shopping receipt (jpg, png or webp, up to 5 MB). A vision model on OpenRouter reads every line item, and the bot appends one row per item to a second sheet:
+
+```
+Date       | Barcode       | Item name     | Qty | Price
+2026-10-18 | 8998866200301 | INDOMIE GRG   | 5   | 3100
+2026-10-18 |               | DISKON MEMBER | 1   | -2000
+```
+
+- Price is the **unit** price. Each discount gets its own row with a negative price.
+- The date is the one printed on the receipt. If it can't be read, the bot uses the day you posted.
+
+The bot replies with the items it saved. It adds `⚠️ items sum …, receipt total …` when the items don't add up to the printed total. If that happens, check the rows and fix them in the sheet.
+
 ## 1. Discord
 
 1. Create an application at <https://discord.com/developers/applications>, then go to **Bot** and click **Reset Token**. Copy the token into `DISCORD_TOKEN`.

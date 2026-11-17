@@ -7,3 +7,7 @@ test('rangeFor quotes the tab name', () => {
   assert.equal(rangeFor('Pengeluaran 2026'), "'Pengeluaran 2026'!A:D");
   assert.equal(rangeFor("Feb's"), "'Feb''s'!A:D");
 });
+test('rangeFor takes a column span', () => {
+  assert.equal(rangeFor('Struk', 'A:E'), "'Struk'!A:E");
+  assert.equal(rangeFor("Feb's", 'A:E'), "'Feb''s'!A:E");
+});
