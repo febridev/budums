@@ -1,8 +1,8 @@
 import { sheets, auth } from "@googleapis/sheets";
 
 // A1 notation: quote the tab name and double any apostrophes in it.
-export function rangeFor(tab, cols = 'A:D') {
-  return `'${tab.replaceAll("'", "''")}'!${cols}`;
+export function rangeFor(tab) {
+  return `'${tab.replaceAll("'", "''")}'!A:D`;
 }
 
 let client; // created on first append, so importing needs no credentials
@@ -19,23 +19,8 @@ export async function appendSpend(row, { spreadsheetId, tab } = {}) {
   await client.spreadsheets.values.append({
     spreadsheetId: targetId,
     range: rangeFor(targetTab),
-<<<<<<< HEAD
-    valueInputOption: 'USER_ENTERED',
-    insertDataOption: 'INSERT_ROWS',
-    requestBody: { values: rows },
-=======
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [row] },
->>>>>>> feat/receipt
   });
-}
-
-export async function appendSpend(row) {
-  await append(process.env.SPREADSHEET_ID, process.env.SHEET_TAB, 'A:D', [row]);
-}
-
-// All rows of one receipt in one call, so a receipt is saved fully or not at all.
-export async function appendReceipt(rows) {
-  await append(process.env.RECEIPT_SPREADSHEET_ID, process.env.RECEIPT_SHEET_TAB, 'A:E', rows);
 }
