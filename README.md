@@ -1,17 +1,34 @@
 # budums
 
-A Discord bot that logs daily spending to a Google Sheet. Post a message in one channel and the bot appends a row.
+A Discord bot that logs daily spending to Google Sheets from text messages or receipt images.
 
 ```
 jajan kopi 25000 jajan   →   2026-10-25 | 25000 | jajan kopi | jajan
+/receipt [image]         →   2026-10-25 | 24000 | Kopi Kenangan | jajan
 ```
 
-**How a message is read:**
-- The **last word** is the category.
-- The **plain number before it** is the price. Only digits are allowed: no `k`, dots or commas.
-- **Everything before the price** is the item.
+## Features
 
-The date is the day you posted, in Asia/Jakarta time. The bot replies `✅ …` when the row is saved, shows the format when it can't read the message, and replies `❌ not saved: …` when Google rejects the write.
+- **Receipt Image Scanning (`/receipt`):** Upload an image receipt. The bot uses Gemini 3.5 Flash (free tier) to extract the item, total price, and category, and automatically appends it to your Google Sheet.
+- **Remember Sheet Per Channel (`/set-sheet`):** Use the bot across multiple channels. Each channel remembers its own Google Sheet so you don't need to re-enter links each time.
+- **Text Logging:** Post a quick message in any configured channel:
+  - Last word: category
+  - Number before it: price (digits only)
+  - Everything before: item
+
+The date is recorded in `Asia/Jakarta` time (UTC+7).
+
+---
+
+## Slash Commands
+
+| Command | Description |
+|---|---|
+| `/receipt image:<file> [category:<tag>] [item:<name>]` | Scan a receipt photo and append it to the channel's Google Sheet. |
+| `/set-sheet sheet:<URL or ID> [tab:<name>]` | Link and remember a Google Sheet for the current channel. |
+| `/current-sheet` | View which Google Sheet and tab are linked to this channel. |
+
+---
 
 ### Receipts: `/struck`
 
@@ -31,51 +48,49 @@ The bot replies with the items it saved. It adds `⚠️ items sum …, receipt 
 ## 1. Discord
 
 1. Create an application at <https://discord.com/developers/applications>, then go to **Bot** and click **Reset Token**. Copy the token into `DISCORD_TOKEN`.
-2. On the same page, turn on **Message Content Intent**. Without it the bot fails to log in with `Used disallowed intents` and keeps restarting.
+2. On the same page, turn on **Message Content Intent**.
 3. Go to **OAuth2 → URL Generator** and choose:
-   - scopes: `bot` and `applications.commands` (the second one is needed for `/struck`)
+   - scopes: `bot`, `applications.commands`
    - permissions: *View Channel*, *Send Messages*, *Read Message History*
 
-   Open the generated URL and add the bot to your server. If the bot was added before `/struck` existed, open the new URL once more to grant the extra scope.
-4. In Discord, go to **Settings → Advanced** and turn on **Developer Mode**. Then right-click the spending channel, choose **Copy Channel ID**, and paste it into `CHANNEL_ID`. Do the same for the receipt channel and paste its ID into `RECEIPT_CHANNEL_ID`.
+   Open the generated URL and invite the bot to your server.
 
-## 2. Google Sheets
+## 2. Gemini API (Free Tier)
+
+1. Go to [Google AI Studio](https://aistudio.google.com/apikey).
+2. Click **Create API key** (in a new project without billing attached).
+3. Copy the key into `GEMINI_API_KEY` in `.env`.
+
+## 3. Google Sheets
 
 1. In <https://console.cloud.google.com>, create or pick a project and enable the **Google Sheets API**.
 2. Go to **IAM & Admin → Service Accounts** and create a service account. Open **Keys → Add key → JSON**, and save the downloaded key as `credentials.json` in this folder.
-3. Open your sheet and **Share** it with the service account's email (`…@….iam.gserviceaccount.com`) as **Editor**.
+3. Open your Google Sheet and **Share** it with the service account email (`…@….iam.gserviceaccount.com`) as **Editor**.
 4. Type the header row: `Date | Price | Item | Category`.
-5. Copy the spreadsheet ID from the URL (`https://docs.google.com/spreadsheets/d/<ID>/edit`) into `SPREADSHEET_ID`. Put the tab name (e.g. `Sheet1`) into `SHEET_TAB`.
-6. For receipts, create a second spreadsheet and share it with the same service account as **Editor**. Type the header row `Date | Barcode | Item name | Qty | Price`. Put its ID into `RECEIPT_SPREADSHEET_ID` and its tab name into `RECEIPT_SHEET_TAB`.
 
-## 2b. OpenRouter (receipt reading)
-
-1. Create an API key at <https://openrouter.ai/keys>, add a little credit, and put the key into `OPENROUTER_API_KEY`.
-2. `OPENROUTER_MODEL` picks the vision model. The default, `anthropic/claude-haiku-5.5`, costs well under Rp 50 per receipt. To try another model, e.g. `google/gemini-3.1-flash-lite`, change the value and restart the bot.
-
-## 3. Run locally
+## 4. Run locally
 
 Requires Node 22 or newer.
 
 ```sh
-cp .env.example .env   # then fill it in
+cp .env.example .env   # fill in DISCORD_TOKEN, GEMINI_API_KEY, credentials.json
 npm install
 npm test
 npm start
 ```
 
-## 4. Run on the VPS (Docker Compose v2)
+Once running, type `/set-sheet` in any Discord channel with your Google Sheet URL to link it.
+
+## 5. Run on VPS (Docker Compose v2)
 
 1. Copy the repo to the VPS.
 2. Put `.env` and `credentials.json` next to `compose.yml`. Neither file is in git or in the image.
 3. Run:
 
 ```sh
-sudo chown 1000:1000 credentials.json && sudo chmod 600 credentials.json   # readable only by the container's node user (uid 1000)
+sudo chown 1000:1000 credentials.json && sudo chmod 600 credentials.json
 docker compose up -d --build
-docker compose logs -f          # expect "Logged in as …"
+docker compose logs -f
 ```
 
-The bot restarts automatically after a crash or a reboot. It opens no ports and only needs outbound HTTPS.
-
-To update the bot later, pull the latest code and run `docker compose up -d --build` again.
+Channel mappings are saved to `./data/channels.json` which is mounted as a persistent volume.
