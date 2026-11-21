@@ -7,9 +7,12 @@ export async function handleSpend(text, createdAt, append, options = {}) {
   if (!spend) return 'Format: <item> <price> <category>, e.g. jajan kopi 25000 jajan';
   const { item, price, category } = spend;
   const date = jakartaDate(createdAt);
-  // Row format: TGL | Kode_Barcode | Nama_Barang | Qty | Harga_Satuan | Total_Harga
+  // Layout for daily spend (same layout as /receipt-daily): Tanggal | Keterangan | Kategori | Jumlah Uang
   try {
-    await append([date, '', `${item} (${category})`, 1, price, price], options);
+    await append([date, item, category, price], {
+      ...options,
+      columns: options.columns || 'A:D',
+    });
   } catch (err) {
     console.error('append failed:', err);
     return `❌ not saved: ${err.message}`;
