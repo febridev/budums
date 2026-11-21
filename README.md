@@ -11,6 +11,7 @@ jajan kopi 25000 jajan   →   2026-10-25 | 25000 | jajan kopi | jajan
 
 - **Receipt Image Scanning (`/receipt`):** Upload an image receipt. The bot uses Gemini to extract items, qty, and prices, and appends rows to your Google Sheet (`TGL | Kode_Barcode | Nama_Barang | Qty | Harga_Satuan | Total_Harga`).
 - **Daily Receipt Scanning (`/receipt-daily`):** Upload an image receipt. The bot extracts items, categories, and totals, and appends rows in a daily expense layout (`Tanggal | Keterangan | Kategori | Jumlah Uang`).
+- **Bank Statement Scanning (`/bank`):** Upload a bank statement PDF or image (e.g. BCA, Mandiri, BRI, BNI). The bot extracts all transactions into standard bank ledger format (`Tanggal | Keterangan | Uang Masuk | Uang Keluar | Saldo Akhir Harian`).
 - **Remember Sheet Per Channel (`/set-sheet`):** Use the bot across multiple channels. Each channel remembers its own Google Sheet so you don't need to re-enter links each time.
 - **Text Logging:** Post a quick message in any configured channel:
   - Last word: category
@@ -27,6 +28,7 @@ The date is recorded in `Asia/Jakarta` time (UTC+7).
 |---|---|
 | `/receipt image:<file> [sheet_name:<name>] [category:<tag>] [item:<name>]` | Scan a receipt photo and append it to Google Sheet (`TGL \| Kode_Barcode \| Nama_Barang \| Qty \| Harga_Satuan \| Total_Harga`). |
 | `/receipt-daily image:<file> [sheet_name:<name>] [category:<tag>] [item:<name>]` | Scan a receipt photo and append it to Google Sheet in daily format (`Tanggal \| Keterangan \| Kategori \| Jumlah Uang`). |
+| `/bank bank:<name> file:<file> [sheet_name:<name>]` | Scan a bank statement (PDF or image) and append transactions in ledger format (`Tanggal \| Keterangan \| Uang Masuk \| Uang Keluar \| Saldo Akhir Harian`). |
 | `/set-sheet [sheet_name:<name>] [url:<URL or ID>]` | Link which sheet/tab name and Google Sheet to use for this channel. |
 | `/current-sheet` | View which Google Sheet and sheet name are linked to this channel. |
 
@@ -46,6 +48,21 @@ Date       | Barcode       | Item name     | Qty | Price
 - The date is the one printed on the receipt. If it can't be read, the bot uses the day you posted.
 
 The bot replies with the items it saved. It adds `⚠️ items sum …, receipt total …` when the items don't add up to the printed total. If that happens, check the rows and fix them in the sheet.
+
+### Bank Statements: `/bank`
+
+Type `/bank bank:<name> file:<pdf or image>` (or post a message `/bank <name>` with the file attached). For example:
+- `/bank bank:bca file:mutasi.pdf`
+- Or specify an optional sheet name: `/bank bank:bca file:mutasi.pdf sheet_name:BCA`
+
+Supported banks include **BCA**, **Mandiri**, **BRI**, **BNI**, and other bank statements. The bot reads debits (DB/Uang Keluar) and credits (CR/Uang Masuk), automatically parses transaction dates and descriptions, and appends rows to your Google Sheet:
+
+```
+Tanggal    | Keterangan                                          | Uang Masuk | Uang Keluar | Saldo Akhir Harian
+2026-11-08 | 5379412170773880 TARIKAN ATM 08/11                 |            | 700000      | 
+2026-11-10 | 1011/FTSCY/WS95031 FLIPTECH LENTERA I TRSF DB       |            | 300329      | 
+2026-11-10 | 1011/FTSCY/WS95031 PENI LESTARI TRSF CR            | 300000     |             | 
+```
 
 ## 1. Discord
 

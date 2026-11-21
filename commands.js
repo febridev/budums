@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { getChannelConfig, setChannelConfig } from './channels.js';
 import { handleReceiptCommand, handleReceiptDailyCommand } from './receipt.js';
+import { handleBankCommand } from './bank.js';
 
 export const slashCommands = [
   new SlashCommandBuilder()
@@ -56,6 +57,28 @@ export const slashCommands = [
       opt
         .setName('item')
         .setDescription('Optional item description override')
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('bank')
+    .setDescription('Extract bank statement transactions and save to Google Sheet')
+    .addStringOption((opt) =>
+      opt
+        .setName('bank')
+        .setDescription('Bank name (e.g. bca, mandiri, bri, bni)')
+        .setRequired(true)
+    )
+    .addAttachmentOption((opt) =>
+      opt
+        .setName('file')
+        .setDescription('Bank statement PDF or image file')
+        .setRequired(true)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName('sheet_name')
+        .setDescription('Optional sheet/tab name inside the file (e.g. BCA, Bank, Nov2026)')
         .setRequired(false)
     ),
 
@@ -184,5 +207,67 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
     });
 
     await interaction.editReply(reply);
+    return;
+  }
+
+  if (commandName === 'bank') {
+    const config = getChannelConfig(interaction.channelId);
+    if (!config) {
+      await interaction.reply({
+        content:
+          `⚠️ **No Google Sheet is configured for this channel yet.**\n` +
+          `Please configure this channel first with:\n` +
+          `\`/set-sheet sheet_name:<Sheet Name> [url:<Google Sheet URL>]\``,
+      });
+      return;
+    }
+
+    const attachment =
+      interaction.options.getAttachment('file') ||
+      interaction.options.getAttachment('pdf');
+
+    if (!attachment) {
+      await interaction.reply({
+        content: '❌ Please upload a bank statement PDF or image file.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const isPdf =
+      attachment.contentType === 'application/pdf' ||
+      attachment.contentType === 'application/x-pdf' ||
+      attachment.name?.toLowerCase().endsWith('.pdf');
+    const isImage =
+      attachment.contentType?.startsWith('image/') ||
+      /\.(png|jpe?g|webp)$/i.test(attachment.name || '');
+
+    if (!isPdf && !isImage) {
+      await interaction.reply({
+        content: '❌ Please upload a valid PDF or image file (PDF, PNG, JPG).',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const bank = interaction.options.getString('bank', true);
+    const customTab = interaction.options.getString('sheet_name');
+
+    await interaction.deferReply();
+
+    const reply = await handleBankCommand({
+      fileUrl: attachment.url,
+      fileName: attachment.name,
+      fileContentType: attachment.contentType,
+      bank,
+      createdAt: interaction.createdAt,
+      channelConfig: config,
+      appendSpend,
+      customTab,
+      aiClient,
+    });
+
+    await interaction.editReply(reply);
+    return;
   }
 }
