@@ -17,6 +17,7 @@ jajan kopi 25000 jajan   →   2026-10-25 | 25000 | jajan kopi | jajan
   - Last word: category
   - Number before it: price (digits only)
   - Everything before: item
+  Appends in daily layout (`Tanggal | Keterangan | Kategori | Jumlah Uang`), matching `/receipt-daily`.
 
 The date is recorded in `Asia/Jakarta` time (UTC+7).
 

@@ -4,11 +4,27 @@ import { handleSpend } from './handle.js';
 
 const at = new Date('2026-10-24T23:30:00Z');
 
-test('valid message appends row in TGL|Kode_Barcode|Nama_Barang|Qty|Harga_Satuan|Total_Harga order and confirms', async () => {
+test('valid message appends row in Tanggal|Keterangan|Kategori|Jumlah Uang order (matching /receipt-daily) and confirms', async () => {
   const rows = [];
-  const reply = await handleSpend('jajan kopi 25000 jajan', at, async (r) => { rows.push(r); });
-  assert.deepEqual(rows, [['2026-10-25', '', 'jajan kopi (jajan)', 1, 25000, 25000]]);
+  let capturedOptions = null;
+  const reply = await handleSpend('jajan kopi 25000 jajan', at, async (r, opts) => {
+    rows.push(r);
+    capturedOptions = opts;
+  });
+  assert.deepEqual(rows, [['2026-10-25', 'jajan kopi', 'jajan', 25000]]);
+  assert.equal(capturedOptions?.columns, 'A:D');
   assert.equal(reply, '✅ 2026-10-25 | 25000 | jajan kopi | jajan');
+});
+test('valid message with jajan mie 5000 jajan writes Tanggal|Keterangan|Kategori|Jumlah Uang columns A:D', async () => {
+  const rows = [];
+  let capturedOptions = null;
+  const reply = await handleSpend('jajan mie 5000 jajan', at, async (r, opts) => {
+    rows.push(r);
+    capturedOptions = opts;
+  });
+  assert.deepEqual(rows, [['2026-10-25', 'jajan mie', 'jajan', 5000]]);
+  assert.equal(capturedOptions?.columns, 'A:D');
+  assert.equal(reply, '✅ 2026-10-25 | 5000 | jajan mie | jajan');
 });
 test('invalid message returns format hint and appends nothing', async () => {
   let called = false;
