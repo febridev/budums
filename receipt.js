@@ -17,6 +17,7 @@ Analyze this receipt image and extract EVERY individual line item purchased.
 
 Return a JSON array where each element has:
 - "item": The name of the individual product or item exactly as printed (e.g. "Es Kopi Susu", "Roti Bakar Coklat", "Nasi Goreng"). Keep the original name, do NOT summarize multiple items into one.
+- "category": A short expense category in Indonesian for this item (e.g. "makanan", "minuman", "belanja", "jajan", "transportasi", "kebutuhan").
 - "qty": The quantity purchased (integer, default 1 if not shown).
 - "unit_price": The price per single unit as an integer (e.g. 15000). No currency symbols, dots, commas, or decimals.
 - "total_price": The line total as an integer (qty × unit_price, e.g. 30000 for 2x 15000).
@@ -30,8 +31,8 @@ Important rules:
 
 Example output:
 [
-  { "item": "Es Kopi Susu", "qty": 1, "unit_price": 24000, "total_price": 24000, "date": "2026-11-17" },
-  { "item": "Roti Bakar Coklat", "qty": 2, "unit_price": 18000, "total_price": 36000, "date": "2026-11-17" }
+  { "item": "Es Kopi Susu", "category": "minuman", "qty": 1, "unit_price": 24000, "total_price": 24000, "date": "2026-11-17" },
+  { "item": "Roti Bakar Coklat", "category": "makanan", "qty": 2, "unit_price": 18000, "total_price": 36000, "date": "2026-11-17" }
 ]
 
 If this image is not a receipt or no items can be found, return:
@@ -107,8 +108,15 @@ export async function extractReceiptFromBuffer(buffer, mimeType = 'image/jpeg', 
 
     if (!totalPrice || totalPrice <= 0) continue;
 
+    const rawCategory = entry.category;
+    const category = (
+      options.customCategory ||
+      (typeof rawCategory === 'string' && rawCategory.trim() ? rawCategory.trim() : 'belanja')
+    );
+
     items.push({
       item: (options.customItem || entry.item || 'Belanja').trim(),
+      category,
       qty,
       unitPrice: finalUnit,
       totalPrice,
@@ -147,6 +155,7 @@ export async function handleReceiptCommand({
   customItem,
   customTab,
   aiClient,
+  layout = 'standard',
 }) {
   if (!channelConfig || !channelConfig.spreadsheetId) {
     return (
@@ -184,20 +193,35 @@ export async function handleReceiptCommand({
   const fallbackDate = jakartaDate(createdAt);
   const targetTab = (customTab || channelConfig.tab || 'Sheet1').trim();
 
-  // Build rows: TGL | Kode_Barcode | Nama_Barang | Qty | Harga_Satuan | Total_Harga
-  const rows = items.map((it) => [
-    it.date || fallbackDate,
-    '',  // Kode_Barcode (empty)
-    it.item,
-    it.qty,
-    it.unitPrice,
-    it.totalPrice,
-  ]);
+  let rows;
+  let columns = 'A:F';
+
+  if (layout === 'daily') {
+    // Layout for /receipt-daily: Tanggal | Keterangan | Kategori | Jumlah Uang
+    columns = 'A:D';
+    rows = items.map((it) => [
+      it.date || fallbackDate,
+      it.item,
+      customCategory || it.category || 'belanja',
+      it.totalPrice,
+    ]);
+  } else {
+    // Layout for /receipt: TGL | Kode_Barcode | Nama_Barang | Qty | Harga_Satuan | Total_Harga
+    rows = items.map((it) => [
+      it.date || fallbackDate,
+      '',  // Kode_Barcode (empty)
+      it.item,
+      it.qty,
+      it.unitPrice,
+      it.totalPrice,
+    ]);
+  }
 
   try {
     await appendSpend(rows, {
       spreadsheetId: channelConfig.spreadsheetId,
       tab: targetTab,
+      columns,
     });
   } catch (err) {
     console.error('appendSpend failed:', err);
@@ -208,7 +232,8 @@ export async function handleReceiptCommand({
   const grandTotal = items.reduce((sum, it) => sum + it.totalPrice, 0);
   const lines = items.map((it) => {
     const qtyStr = it.qty > 1 ? ` x${it.qty}` : '';
-    return `  • ${it.item}${qtyStr} — ${it.totalPrice.toLocaleString('id-ID')}`;
+    const catStr = layout === 'daily' ? ` (${it.category})` : '';
+    return `  • ${it.item}${qtyStr}${catStr} — ${it.totalPrice.toLocaleString('id-ID')}`;
   });
 
   return (
@@ -217,4 +242,8 @@ export async function handleReceiptCommand({
     `  **Total: ${grandTotal.toLocaleString('id-ID')}**\n` +
     `*(Sheet: \`${targetTab}\`)*`
   );
+}
+
+export async function handleReceiptDailyCommand(options) {
+  return handleReceiptCommand({ ...options, layout: 'daily' });
 }

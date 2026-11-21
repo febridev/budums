@@ -22,7 +22,7 @@ client.once(Events.ClientReady, async (c) => {
   console.log(`Logged in as ${c.user.tag}`);
   try {
     await client.application.commands.set(slashCommands);
-    console.log('Registered slash commands (/receipt, /set-sheet, /current-sheet)');
+    console.log('Registered slash commands (/receipt, /receipt-daily, /set-sheet, /current-sheet)');
   } catch (err) {
     console.error('Failed to register slash commands:', err);
   }

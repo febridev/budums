@@ -9,7 +9,8 @@ jajan kopi 25000 jajan   →   2026-10-25 | 25000 | jajan kopi | jajan
 
 ## Features
 
-- **Receipt Image Scanning (`/receipt`):** Upload an image receipt. The bot uses Gemini 3.5 Flash (free tier) to extract the item, total price, and category, and automatically appends it to your Google Sheet.
+- **Receipt Image Scanning (`/receipt`):** Upload an image receipt. The bot uses Gemini to extract items, qty, and prices, and appends rows to your Google Sheet (`TGL | Kode_Barcode | Nama_Barang | Qty | Harga_Satuan | Total_Harga`).
+- **Daily Receipt Scanning (`/receipt-daily`):** Upload an image receipt. The bot extracts items, categories, and totals, and appends rows in a daily expense layout (`Tanggal | Keterangan | Kategori | Jumlah Uang`).
 - **Remember Sheet Per Channel (`/set-sheet`):** Use the bot across multiple channels. Each channel remembers its own Google Sheet so you don't need to re-enter links each time.
 - **Text Logging:** Post a quick message in any configured channel:
   - Last word: category
@@ -24,7 +25,8 @@ The date is recorded in `Asia/Jakarta` time (UTC+7).
 
 | Command | Description |
 |---|---|
-| `/receipt image:<file> [sheet_name:<name>] [category:<tag>] [item:<name>]` | Scan a receipt photo and append it to the channel's Google Sheet (or a specific sheet name). |
+| `/receipt image:<file> [sheet_name:<name>] [category:<tag>] [item:<name>]` | Scan a receipt photo and append it to Google Sheet (`TGL \| Kode_Barcode \| Nama_Barang \| Qty \| Harga_Satuan \| Total_Harga`). |
+| `/receipt-daily image:<file> [sheet_name:<name>] [category:<tag>] [item:<name>]` | Scan a receipt photo and append it to Google Sheet in daily format (`Tanggal \| Keterangan \| Kategori \| Jumlah Uang`). |
 | `/set-sheet [sheet_name:<name>] [url:<URL or ID>]` | Link which sheet/tab name and Google Sheet to use for this channel. |
 | `/current-sheet` | View which Google Sheet and sheet name are linked to this channel. |
 
