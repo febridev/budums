@@ -3,6 +3,7 @@ import { handleSpend } from './handle.js';
 import { appendSpend } from './sheet.js';
 import { getChannelConfig } from './channels.js';
 import { slashCommands, handleInteraction } from './commands.js';
+import { handleBankCommand } from './bank.js';
 
 const required = ['DISCORD_TOKEN', 'GOOGLE_APPLICATION_CREDENTIALS', 'GEMINI_API_KEY'];
 const missing = required.filter((name) => !process.env[name]);
@@ -22,7 +23,7 @@ client.once(Events.ClientReady, async (c) => {
   console.log(`Logged in as ${c.user.tag}`);
   try {
     await client.application.commands.set(slashCommands);
-    console.log('Registered slash commands (/receipt, /receipt-daily, /set-sheet, /current-sheet)');
+    console.log('Registered slash commands (/receipt, /receipt-daily, /bank, /set-sheet, /current-sheet)');
   } catch (err) {
     console.error('Failed to register slash commands:', err);
   }
@@ -42,6 +43,48 @@ client.on(Events.MessageCreate, async (message) => {
   const config = getChannelConfig(message.channelId);
   // Only process if channel has a configured Google Sheet
   if (!config) return;
+
+  if (message.content.trim().toLowerCase().startsWith('/bank')) {
+    const parts = message.content.trim().split(/\s+/);
+    const bankName = parts[1];
+    if (!bankName) {
+      await message.reply('⚠️ Please specify a bank name, e.g. `/bank bca` with an attached PDF.');
+      return;
+    }
+    const attachment = message.attachments.first();
+    if (!attachment) {
+      await message.reply('⚠️ Please attach a bank statement PDF or image with your `/bank` message.');
+      return;
+    }
+    const isPdf =
+      attachment.contentType === 'application/pdf' ||
+      attachment.contentType === 'application/x-pdf' ||
+      attachment.name?.toLowerCase().endsWith('.pdf');
+    const isImage =
+      attachment.contentType?.startsWith('image/') ||
+      /\.(png|jpe?g|webp)$/i.test(attachment.name || '');
+    if (!isPdf && !isImage) {
+      await message.reply('❌ Please attach a valid PDF or image file (PDF, PNG, JPG).');
+      return;
+    }
+
+    try {
+      const reply = await handleBankCommand({
+        fileUrl: attachment.url,
+        fileName: attachment.name,
+        fileContentType: attachment.contentType,
+        bank: bankName,
+        createdAt: message.createdAt,
+        channelConfig: config,
+        appendSpend,
+      });
+      await message.reply(reply);
+    } catch (err) {
+      console.error('bank statement failed:', err);
+      await message.reply(`❌ Could not process bank statement: ${err.message}`);
+    }
+    return;
+  }
 
   try {
     const reply = await handleSpend(message.content, message.createdAt, appendSpend, {
