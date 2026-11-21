@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { getChannelConfig, setChannelConfig } from './channels.js';
-import { handleReceiptCommand } from './receipt.js';
+import { handleReceiptCommand, handleReceiptDailyCommand } from './receipt.js';
 
 export const slashCommands = [
   new SlashCommandBuilder()
@@ -16,6 +16,34 @@ export const slashCommands = [
       opt
         .setName('sheet_name')
         .setDescription('Optional sheet/tab name inside the file (e.g. Food, Transport, Nov2026)')
+        .setRequired(false)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName('category')
+        .setDescription('Optional category override (e.g. jajan, makan, belanja)')
+        .setRequired(false)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName('item')
+        .setDescription('Optional item description override')
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
+    .setName('receipt-daily')
+    .setDescription('Scan a receipt image and save spending in daily layout (Tanggal, Keterangan, Kategori, Jumlah Uang)')
+    .addAttachmentOption((opt) =>
+      opt
+        .setName('image')
+        .setDescription('Receipt image (JPG, PNG, WebP)')
+        .setRequired(true)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName('sheet_name')
+        .setDescription('Optional sheet/tab name inside the file (e.g. Daily, Food, Nov2026)')
         .setRequired(false)
     )
     .addStringOption((opt) =>
@@ -114,7 +142,7 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
     return;
   }
 
-  if (commandName === 'receipt') {
+  if (commandName === 'receipt' || commandName === 'receipt-daily') {
     const config = getChannelConfig(interaction.channelId);
     if (!config) {
       await interaction.reply({
@@ -141,7 +169,10 @@ export async function handleInteraction(interaction, { appendSpend, aiClient } =
 
     await interaction.deferReply();
 
-    const reply = await handleReceiptCommand({
+    const isDaily = commandName === 'receipt-daily';
+    const handler = isDaily ? handleReceiptDailyCommand : handleReceiptCommand;
+
+    const reply = await handler({
       imageUrl: attachment.url,
       createdAt: interaction.createdAt,
       channelConfig: config,

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractReceiptFromBuffer, handleReceiptCommand } from './receipt.js';
+import { extractReceiptFromBuffer, handleReceiptCommand, handleReceiptDailyCommand } from './receipt.js';
 
 function createMockAiClient(responseJson) {
   return {
@@ -196,4 +196,102 @@ test('handleReceiptCommand reports Google Sheet append failure', async () => {
   });
 
   assert.match(reply, /❌ Failed to save to Google Sheet: Permission denied/);
+});
+
+test('handleReceiptDailyCommand saves rows in Tanggal|Keterangan|Kategori|Jumlah Uang format with columns A:D', async () => {
+  const mockClient = createMockAiClient([
+    { item: 'Es Kopi Susu', category: 'minuman', qty: 1, unit_price: 24000, total_price: 24000, date: '2026-11-20' },
+    { item: 'Roti Bakar Coklat', category: 'makanan', qty: 2, unit_price: 18000, total_price: 36000, date: '2026-11-20' },
+  ]);
+
+  let appendedArgs = null;
+  const mockAppend = async (rows, opts) => {
+    appendedArgs = { rows, opts };
+  };
+
+  const channelConfig = {
+    spreadsheetId: 'sheet-daily-test',
+    tab: 'DailyExpenses',
+  };
+
+  const reply = await handleReceiptDailyCommand({
+    buffer: Buffer.from('fake'),
+    createdAt: new Date('2026-11-20T10:00:00Z'),
+    channelConfig,
+    appendSpend: mockAppend,
+    aiClient: mockClient,
+  });
+
+  assert.match(reply, /Saved 2 items/);
+  assert.match(reply, /Es Kopi Susu/);
+  assert.match(reply, /minuman/);
+  assert.match(reply, /Roti Bakar Coklat/);
+  assert.match(reply, /makanan/);
+  assert.equal(appendedArgs.opts.columns, 'A:D');
+  assert.equal(appendedArgs.opts.tab, 'DailyExpenses');
+
+  // Verify rows structure: [Tanggal, Keterangan, Kategori, Jumlah Uang]
+  const rows = appendedArgs.rows;
+  assert.equal(rows.length, 2);
+
+  // Row 1
+  assert.equal(rows[0][0], '2026-11-20');      // Tanggal
+  assert.equal(rows[0][1], 'Es Kopi Susu');   // Keterangan
+  assert.equal(rows[0][2], 'minuman');        // Kategori
+  assert.equal(rows[0][3], 24000);            // Jumlah Uang
+  assert.equal(rows[0].length, 4);
+
+  // Row 2
+  assert.equal(rows[1][0], '2026-11-20');        // Tanggal
+  assert.equal(rows[1][1], 'Roti Bakar Coklat'); // Keterangan
+  assert.equal(rows[1][2], 'makanan');           // Kategori
+  assert.equal(rows[1][3], 36000);               // Jumlah Uang
+  assert.equal(rows[1].length, 4);
+});
+
+test('handleReceiptDailyCommand respects customCategory override', async () => {
+  const mockClient = createMockAiClient([
+    { item: 'Nasi Padang', category: 'makanan', qty: 1, unit_price: 25000, total_price: 25000 },
+  ]);
+
+  let appendedArgs = null;
+  const mockAppend = async (rows, opts) => {
+    appendedArgs = { rows, opts };
+  };
+
+  await handleReceiptDailyCommand({
+    buffer: Buffer.from('fake'),
+    createdAt: new Date('2026-11-20T10:00:00Z'),
+    channelConfig: { spreadsheetId: 'sheet-123', tab: 'Sheet1' },
+    customCategory: 'jajan',
+    appendSpend: mockAppend,
+    aiClient: mockClient,
+  });
+
+  const row = appendedArgs.rows[0];
+  assert.equal(row[1], 'Nasi Padang'); // Keterangan
+  assert.equal(row[2], 'jajan');       // Kategori override
+  assert.equal(row[3], 25000);       // Jumlah Uang
+});
+
+test('handleReceiptDailyCommand defaults category to belanja if not provided', async () => {
+  const mockClient = createMockAiClient([
+    { item: 'Buku Tulis', qty: 1, unit_price: 10000, total_price: 10000 },
+  ]);
+
+  let appendedArgs = null;
+  const mockAppend = async (rows, opts) => {
+    appendedArgs = { rows, opts };
+  };
+
+  await handleReceiptDailyCommand({
+    buffer: Buffer.from('fake'),
+    createdAt: new Date('2026-11-20T10:00:00Z'),
+    channelConfig: { spreadsheetId: 'sheet-123', tab: 'Sheet1' },
+    appendSpend: mockAppend,
+    aiClient: mockClient,
+  });
+
+  const row = appendedArgs.rows[0];
+  assert.equal(row[2], 'belanja'); // Default Kategori
 });

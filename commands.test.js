@@ -20,10 +20,10 @@ afterEach(() => {
   delete process.env.CHANNELS_FILE;
 });
 
-test('slashCommands exports 3 commands', () => {
-  assert.equal(slashCommands.length, 3);
+test('slashCommands exports 4 commands', () => {
+  assert.equal(slashCommands.length, 4);
   const names = slashCommands.map((c) => c.name);
-  assert.deepEqual(names, ['receipt', 'set-sheet', 'current-sheet']);
+  assert.deepEqual(names, ['receipt', 'receipt-daily', 'set-sheet', 'current-sheet']);
 });
 
 test('handleInteraction set-sheet configures channel and replies', async () => {
@@ -111,6 +111,44 @@ test('handleInteraction receipt rejects non-image attachment', async () => {
     isChatInputCommand: () => true,
     commandName: 'receipt',
     channelId: 'chan-img-test',
+    options: {
+      getAttachment: () => ({ contentType: 'application/pdf', url: 'https://example.com/doc.pdf' }),
+      getString: () => null,
+    },
+    reply: async (data) => {
+      replied = data;
+    },
+  };
+
+  await handleInteraction(interaction);
+  assert.match(replied.content, /Please upload a valid image file/);
+});
+
+test('handleInteraction receipt-daily warns if channel is not configured', async () => {
+  let replied = null;
+  const interaction = {
+    isChatInputCommand: () => true,
+    commandName: 'receipt-daily',
+    channelId: 'chan-unconfigured-daily',
+    reply: async (data) => {
+      replied = data;
+    },
+  };
+
+  await handleInteraction(interaction);
+  assert.match(replied.content, /No Google Sheet is configured for this channel yet/);
+});
+
+test('handleInteraction receipt-daily rejects non-image attachment', async () => {
+  process.env.CHANNEL_ID = 'chan-daily-test';
+  process.env.SPREADSHEET_ID = 'sheet-123456789012345';
+  process.env.SHEET_TAB = 'Sheet1';
+
+  let replied = null;
+  const interaction = {
+    isChatInputCommand: () => true,
+    commandName: 'receipt-daily',
+    channelId: 'chan-daily-test',
     options: {
       getAttachment: () => ({ contentType: 'application/pdf', url: 'https://example.com/doc.pdf' }),
       getString: () => null,
